@@ -1,5 +1,5 @@
 # This was last updated on 1/03/2024
-$userName = "Alejandro Lopez" # Change this variable to the name of the user of your machine.
+$userName = "[Insert Username]" # Change this variable to the name of the user of your machine.
 
 # Define the base folder path for the Security Awareness Training Status (FINAL) directory
 $baseFolder = "C:\Users\$userName\Documents\Security Awareness Training Status (FINAL)"
