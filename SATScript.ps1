@@ -259,14 +259,14 @@ sortFullData $rawFilePath # This calls on the function "sortFullData" and passes
 $collegeArray = createCollegeArray $sortedFilePath # This calls in the function "createCollegeArray" and passes the sortedFilePath (the path to the SortedSAT.xlsx file)
 $totalColleges = $collegeArray.Length # Stores the number of unique College/Areas into the totalColleges Variable
 
-# Open the workbook outside of the function
+# This open the SortedSAT.xlsx file 
 $Workbook = $objExcel.Workbooks.Open($sortedFilePath)
 
 $i = 1
 
-# Create the workbooks for each college
+# The following loop, it goes through the array of Unique Colleges/Area and creates workbooks for each of those colleges/areas with the respective people in them
 foreach ($college in $collegeArray) {
-    createCollegeWorkbooks $Workbook $college $sortedFilePath    
+    createCollegeWorkbooks $Workbook $college $sortedFilePath    # Calls on the "createCollegeWorkbooks" function and passes the SortedSAT.xlsx file, the college/area in question and the path to the sorted file
     Write-Host "Workbook $i complete out of $totalColleges $college"
     $i = $i + 1   
 }
