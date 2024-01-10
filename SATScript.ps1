@@ -34,7 +34,8 @@ foreach ($key in $paths.Keys) {
     }
 }
 
-# Create another hashtable where keys represent departments/sections and values represent subdirectory paths
+# Create another hashtable where keys represent Colleges/Areas and values represent subdirectory paths
+# NOTE: This is where you would add a new College/Area if you need to and assign it to its respective path
 $CollegePaths = @{
     "Academic Affairs" = "Academic Affairs\Academics Affairs Administration"
     "ED_OPP_PRG" = "Academic Affairs\Academics Affairs Administration"
@@ -94,8 +95,8 @@ Get-ChildItem -Path $baseFolder -Include *.* -File -Recurse | Remove-Item -Error
 
 Get-ChildItem -Path $paths["PathSATStatusReport"] -File | Remove-Item -ErrorAction Ignore # Deletes all files in the SAT Status Report directory
 
-$rawFileName = "ListDIV_Full Data_data.xlsx"
-$SATStatusReportPath = $paths["PathSATStatusReport"]
+$rawFileName = "ListDIV_Full Data_data.xlsx" # This variable defines the name of the workbook that it is looking for. Make sure it is a .xlsx file.
+$SATStatusReportPath = $paths["PathSATStatusReport"] # This variable defines the folder for " SAT Status Report". This is where a copy of the raw file and sorted file go. 
 $rawFilePath = Join-Path $SATStatusReportPath $rawFileName # Sets a variables for the raw file path
 $sortedFilePath = Join-Path $SATStatusReportPath "SortedSAT.xlsx" # Sets a variable for the sorted file path
 
@@ -106,45 +107,48 @@ if (Test-Path -Path $rawFilePath) { Remove-Item -Path $rawFilePath -ErrorAction 
 if (Test-Path -Path $sortedFilePath) { Remove-Item -Path $sortedFilePath -ErrorAction Ignore } # Deletes the SortedSAT workbook in folder 
 
 $objExcel = New-Object -ComObject Excel.Application # Creates Excel Object
-$objExcel.Visible = $false # Enables/Disbaled whether you want to see the GUI or not
+$objExcel.Visible = $false # Enables/Disbaled whether you want to see the GUI or not (In this case it is disabled)
 
 Copy (Join-Path "C:\Users\$userName\Downloads" $rawFileName) $SATStatusReportPath # Copies the raw excel workbook from your downloads and pastes it into "C:\Users$userName\Documents\SAT Status Report"
 
 # The following function does all the formating to the raw file and saves it to a new file called SortedSAT.xlsx
 function sortFullData($rawFilePath) {
-    $Workbook = $objExcel.Workbooks.Open($rawFilePath)
-    $OldWorksheet = $Workbook.Sheets.Item(1)
+    $Workbook = $objExcel.Workbooks.Open($rawFilePath) # Opens the raw workbook
+    $OldWorksheet = $Workbook.Sheets.Item(1) # Sets what sheet to focus on (Sheet 1) and sets the variable OldWorkSheet as sheet #1
 
+    # The following is an array of the fields that are needed.
+    # Here you can add more fields if requested or take away.
+    # This is also the proper order of how the header should be. If you would like to change what headers come first, this aray is where its done.
     $desiredHeaders = "Full Name", "College/Area", "Department", "Dept Id",
                       "Email Address", "Type", "Confidential", "CSUN ID",
                       "Division", "Phone", "Completion Dt", "Hire Dt", "Days since Hire", "Over Due"
 
-    # Create a new worksheet
-    $NewWorksheet = $Workbook.Sheets.Add()
-    $NewWorksheet.Name = "NewSheet"
+    $NewWorksheet = $Workbook.Sheets.Add() # Create a new worksheet
+    $NewWorksheet.Name = "NewSheet" # Names the new sheet to "NewSheet"
 
     # Loop through desired headers
     for ($i = 0; $i -lt $desiredHeaders.Length; $i++) {
         # Find the matching column in the old worksheet
-        $totalColumns = $OldWorksheet.UsedRange.Columns.Count
+        $totalColumns = $OldWorksheet.UsedRange.Columns.Count # Determines how many Columns are in the sheet
         for ($j = 1; $j -le $totalColumns; $j++) {
+            #The following IF statement checks to see if the desired column header was found. If it was, it then copies the column and pastes it to the new sheet.
             if ($OldWorksheet.Cells.Item(1, $j).Text -eq $desiredHeaders[$i]) {
                 # Copy the column to the new worksheet
-                $OldWorksheet.Columns.Item($j).EntireColumn.Copy() | Out-Null
-                $NewWorksheet.Columns.Item($i + 1).EntireColumn.PasteSpecial() | Out-Null
+                $OldWorksheet.Columns.Item($j).EntireColumn.Copy() | Out-Null # Copies desired column from OldWorkSheet (Sheet 1) 
+                $NewWorksheet.Columns.Item($i + 1).EntireColumn.PasteSpecial() | Out-Null # Pastes copied column from old sheet to the NewWorkSheet (Sheet 2)
                 break
             }
         }
     }
+    
+    $OldWorksheet.Delete() # Delete the old worksheet
 
-    # Delete the old worksheet
-    $OldWorksheet.Delete()
-
-    # Sorts all Columns by College/Area
+    # The folling three (3) lines are a bit complicate but it insures that the worksheet is sorted by the College/Area field and in Acending order
     $objRange = $NewWorksheet.UsedRange 
     $objRange2 = $NewWorksheet.Range("B1")  
     [void] $objRange2.Sort($objRange2,1,$null,$null,1,$null,1,1) 
 
+    # The following five (5) lines renames the headers to a more human readable phrase
     $NewWorksheet.Cells.Item(1,4).value() = "Department Number" # Renames "Dept Id" -> Department Number
     $NewWorksheet.Cells.Item(1,11).value() = "Last Completion Date" # Renames "Completion Dt" -> Last Completion Date
     $NewWorksheet.Cells.Item(1,12).value() = "Hire Date" # Renames "Hire Dt" -> Hire Date
@@ -153,17 +157,18 @@ function sortFullData($rawFilePath) {
 
     $NewWorksheet.Columns.item('H').NumberFormat = "000000000" # Formats CSUN ID # -> 000000000 (9 digits, forces leading zeros)
 
-    # Loops through "Last Completion Date" column, replaces "1/1/1111" with "SAT Never Completed"
     $lastCompletionColumn = 11 # Set this to your "Last Completion Date" column number
-    $totalRows = $NewWorksheet.UsedRange.Rows.Count
+    $totalRows = $NewWorksheet.UsedRange.Rows.Count # This gets the total number of rows being used in the Worksheet
+    # This FOR loop starts at row two (2) because row one (1) contains the headers. 
+    # It then loops through "Last Completion Date" column, replaces "1/1/1111" with "SAT Never Completed"
     for ($i = 2; $i -le $totalRows; $i++) {
         if ($NewWorksheet.Cells.Item($i, $lastCompletionColumn).Text -eq "1/1/1111") {
             $NewWorksheet.Cells.Item($i, $lastCompletionColumn).Value2 = "SAT Never Completed"
         }
     }
 
-    $Workbook.SaveAs("C:\Users\$userName\Documents\SAT Status Report\SortedSAT.xlsx") # Saves the workbook to defined location with its new name defined by the CollegeArea variable
-    $Workbook.close($true) # Closes the new workbook
+    $Workbook.SaveAs("C:\Users\$userName\Documents\SAT Status Report\SortedSAT.xlsx") # Saves the workbook to defined location with its new name "SortedSAT.xlsx"
+    $Workbook.close($true) # Closes the workbook
 
     Write-Host "`nFile has been sorted"
 }
@@ -247,10 +252,12 @@ function createCollegeWorkbooks($Workbook, $CollegeArea, $sortedFilePath) {
     $newWorkBook.close($true) # Closes the new workbook
 }
 
-sortFullData $rawFilePath
+sortFullData $rawFilePath # This calls on the function "sortFullData" and passes the rawFilePath (Path to the raw file) in order to sort it.
+# ^ This function strips away all the fields that we do not need and organizes the coloumns in the order we want.
 
-$collegeArray = createCollegeArray $sortedFilePath
-$totalColleges = $collegeArray.Length
+# The folling function creates an array for unique colleges/areas in the college/area column
+$collegeArray = createCollegeArray $sortedFilePath # This calls in the function "createCollegeArray" and passes the sortedFilePath (the path to the SortedSAT.xlsx file)
+$totalColleges = $collegeArray.Length # Stores the number of unique College/Areas into the totalColleges Variable
 
 # Open the workbook outside of the function
 $Workbook = $objExcel.Workbooks.Open($sortedFilePath)
